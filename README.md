@@ -138,23 +138,6 @@ Or manually:
 python -m http.server 8080
 ```
 
----
-
-## Data Storage
-
-All user data is stored in the browser's `localStorage` — no database required.
-
-| Key | Contents |
-|---|---|
-| `mg_users` | Registered accounts (email → SHA-256 hashed password) |
-| `mg_session` | Current session email (persists across browser restarts) |
-| `mg_passport_<email>` | Health passport data per user |
-| `mg_last_analysis` | Most recent AI vital signs analysis result |
-
-> Data is device-specific. Clearing browser storage or using a different device/browser will reset all data.
-
----
-
 ## Cost Estimate (AWS sandbox)
 
 | Service | Free tier | Typical demo cost |
