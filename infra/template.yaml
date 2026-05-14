@@ -1,0 +1,104 @@
+# AWSTemplateFormatVersion: '2010-09-09'
+# Transform: AWS::Serverless-2016-10-31
+# Description: MediGuard – Lambda + API Gateway backend for Bedrock AI health analysis
+
+# Globals:
+#   Function:
+#     Timeout: 30
+#     MemorySize: 256
+#     Runtime: python3.12
+#     Architectures:
+#       - x86_64
+#     Environment:
+#       Variables:
+#         BEDROCK_REGION: !Ref BedrockRegion
+#         BEDROCK_MODEL_ID: !Ref BedrockModelId
+#         MAX_TOKENS: !Ref MaxTokens
+
+# Parameters:
+#   BedrockRegion:
+#     Type: String
+#     Default: us-east-1
+#     Description: AWS region where Bedrock is available
+
+#   BedrockModelId:
+#     Type: String
+#     Default: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+#     Description: Bedrock model ID to use for health analysis
+
+#   MaxTokens:
+#     Type: Number
+#     Default: 2000
+#     Description: Maximum tokens for Bedrock response
+
+#   StageName:
+#     Type: String
+#     Default: prod
+#     Description: API Gateway deployment stage name
+
+# Resources:
+
+#   # ── Lambda Function ──────────────────────────────────────────
+#   MediGuardFunction:
+#     Type: AWS::Serverless::Function
+#     Properties:
+#       FunctionName: mediguard-bedrock-proxy
+#       Handler: lambda_function.lambda_handler
+#       CodeUri: ../backend/
+#       Description: Proxies requests from the MediGuard frontend to Amazon Bedrock
+#       Policies:
+#         - Statement:
+#             - Effect: Allow
+#               Action:
+#                 - bedrock:InvokeModel
+#               Resource:
+#                 - !Sub arn:aws:bedrock:${BedrockRegion}::foundation-model/*
+#       Events:
+#         AnalyzePost:
+#           Type: HttpApi
+#           Properties:
+#             ApiId: !Ref MediGuardApi
+#             Path: /analyze
+#             Method: POST
+#         AnalyzeOptions:
+#           Type: HttpApi
+#           Properties:
+#             ApiId: !Ref MediGuardApi
+#             Path: /analyze
+#             Method: OPTIONS
+
+#   # ── HTTP API Gateway ─────────────────────────────────────────
+#   MediGuardApi:
+#     Type: AWS::Serverless::HttpApi
+#     Properties:
+#       StageName: !Ref StageName
+#       Description: MediGuard API Gateway – routes /analyze to Lambda
+#       CorsConfiguration:
+#         AllowOrigins:
+#           - '*'
+#         AllowMethods:
+#           - POST
+#           - OPTIONS
+#         AllowHeaders:
+#           - Content-Type
+#         MaxAge: 300
+
+#   # ── Lambda Log Group ─────────────────────────────────────────
+#   MediGuardFunctionLogGroup:
+#     Type: AWS::Logs::LogGroup
+#     Properties:
+#       LogGroupName: !Sub /aws/lambda/${MediGuardFunction}
+#       RetentionInDays: 14
+
+# Outputs:
+#   ApiEndpoint:
+#     Description: HTTPS endpoint for the MediGuard /analyze route
+#     Value: !Sub https://${MediGuardApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/analyze
+#     Export:
+#       Name: MediGuardApiEndpoint
+
+#   FunctionArn:
+#     Description: ARN of the MediGuard Lambda function
+#     Value: !GetAtt MediGuardFunction.Arn
+#     Export:
+#       Name: MediGuardFunctionArn
