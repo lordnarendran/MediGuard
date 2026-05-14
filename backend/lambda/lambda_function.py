@@ -1,4 +1,4 @@
-﻿
+
 import boto3
 import json
 import os
@@ -31,44 +31,25 @@ def lambda_handler(event, context):
         raw_body = event.get('body') or '{}'
         if event.get('isBase64Encoded'):
             raw_body = base64.b64decode(raw_body).decode('utf-8')
-        body = raw_body if isinstance(raw_body, dict) else json.loads(raw_body)
-        
-        # Support both old prompt format and new messages format
-        if 'messages' in body:
-            messages = body['messages']
-            if not messages:
-                raise ValueError('Messages array is empty.')
-        elif 'prompt' in body:
-            prompt = body.get('prompt', '').strip()
-            if not prompt:
-                raise ValueError('Missing prompt in request body.')
-            messages = [{'role': 'user', 'content': prompt}]
-        else:
-            raise ValueError('Missing prompt or messages in request body.')
-            
+        body   = raw_body if isinstance(raw_body, dict) else json.loads(raw_body)
+        prompt = body.get('prompt', '').strip()
+        if not prompt:
+            raise ValueError('Missing prompt in request body.')
     except (json.JSONDecodeError, ValueError) as e:
         print(f'[ERROR] Body parse failed: {e}')
         return _error(400, str(e))
 
     try:
         print(f'[DEBUG] Calling Bedrock with model: {MODEL_ID}')
-        
-        # Build payload
-        payload = {
-            'anthropic_version': 'bedrock-2023-05-31',
-            'max_tokens': MAX_TOKENS,
-            'messages': messages
-        }
-        
-        # Add system prompt if provided
-        if 'systemPrompt' in body:
-            payload['system'] = body['systemPrompt']
-        
         response = bedrock.invoke_model(
             modelId     = MODEL_ID,
             contentType = 'application/json',
             accept      = 'application/json',
-            body        = json.dumps(payload),
+            body        = json.dumps({
+                'anthropic_version': 'bedrock-2023-05-31',
+                'max_tokens':        MAX_TOKENS,
+                'messages': [{'role': 'user', 'content': prompt}],
+            }),
         )
         result = json.loads(response['body'].read())
         text   = result['content'][0]['text']
